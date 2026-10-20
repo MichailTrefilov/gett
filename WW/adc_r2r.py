@@ -44,6 +44,26 @@ class R2R_ADC:
         if self.verbose:
             print(f"Число на ЦАП: {number}, напряжение: {voltage:.3f} В")
         return voltage
+     def successive_approximation_adc(self):
+        number = 0
+        # идём от старшего бита (128) к младшему (1)
+        for bit in range(self.bits - 1, -1, -1):
+            trial = number | (1 << bit)      # пробуем включить этот бит
+            self.number_to_dac(trial)
+            time.sleep(self.compare_time)
+
+            # если ЦАП НЕ превысил вход, бит оставляем
+            if GPIO.input(self.comp_gpio) == 0:
+                number = trial
+
+        return number
+
+    def get_sar_voltage(self):
+        number = self.successive_approximation_adc()
+        voltage = number / self.max_number * self.dynamic_range
+        if self.verbose:
+            print(f"Число на ЦАП: {number}, напряжение: {voltage:.3f} В")
+        return voltage
 
 
 if __name__ == "__main__":
