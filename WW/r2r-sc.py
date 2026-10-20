@@ -21,6 +21,7 @@ try:
         time_values.append(time.time() - start_time)
 
     adc_plot.plot_voltage_vs_time(time_values, voltage_values, dynamic_range)
+    adc_plot.plot_sampling_period_hist(time_values)
 
 finally:
     adc.deinit()
