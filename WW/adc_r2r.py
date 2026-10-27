@@ -1,4 +1,3 @@
-import sys
 import time
 
 import RPi.GPIO as GPIO
@@ -28,15 +27,20 @@ class R2R_ADC:
         bits = [int(b) for b in bin(number)[2:].zfill(self.bits)]
         GPIO.output(self.bits_gpio, bits)
 
-    # ---------- задание 1: АЦП последовательного счёта ----------
+    def _compare(self):
+        """Читает компаратор 3 раза и возвращает значение большинства.
+        1 = напряжение ЦАП превысило входное напряжение."""
+        votes = sum(GPIO.input(self.comp_gpio) for _ in range(3))
+        return 1 if votes >= 2 else 0
+
+    # ---------- АЦП последовательного счёта ----------
 
     def sequential_counting_adc(self):
         for number in range(self.max_number + 1):
             self.number_to_dac(number)
             time.sleep(self.compare_time)
 
-            # компаратор = 1, когда напряжение ЦАП превысило входное
-            if GPIO.input(self.comp_gpio) == 1:
+            if self._compare() == 1:
                 return number
 
         return self.max_number
@@ -48,7 +52,7 @@ class R2R_ADC:
             print(f"Число на ЦАП: {number}, напряжение: {voltage:.3f} В")
         return voltage
 
-    # ---------- задание 2: АЦП последовательного приближения ----------
+    # ---------- АЦП последовательного приближения ----------
 
     def successive_approximation_adc(self):
         number = 0
@@ -58,7 +62,7 @@ class R2R_ADC:
             time.sleep(self.compare_time)
 
             # ЦАП не превысил вход -> бит оставляем
-            if GPIO.input(self.comp_gpio) == 0:
+            if self._compare() == 0:
                 number = trial
 
         return number
@@ -72,20 +76,13 @@ class R2R_ADC:
 
 
 if __name__ == "__main__":
-    # python r2r_adc.py      -> задание 1 (последовательный счёт)
-    # python r2r_adc.py sar  -> задание 2 (последовательное приближение)
-    mode = sys.argv[1] if len(sys.argv) > 1 else "sc"
-
     adc = None
     try:
         # динамический диапазон нужно предварительно измерить мультиметром
         adc = R2R_ADC(3.3)
 
         while True:
-            if mode == "sar":
-                voltage = adc.get_sar_voltage()
-            else:
-                voltage = adc.get_sc_voltage()
+            voltage = adc.get_sar_voltage()
             print(f"Напряжение: {voltage:.3f} В")
 
     finally:
