@@ -1,5 +1,7 @@
-import RPi.GPIO as GPIO
+import sys
 import time
+
+import RPi.GPIO as GPIO
 
 
 class R2R_ADC:
@@ -26,14 +28,15 @@ class R2R_ADC:
         bits = [int(b) for b in bin(number)[2:].zfill(self.bits)]
         GPIO.output(self.bits_gpio, bits)
 
+    # ---------- задание 1: АЦП последовательного счёта ----------
+
     def sequential_counting_adc(self):
         for number in range(self.max_number + 1):
             self.number_to_dac(number)
             time.sleep(self.compare_time)
 
-            comp_value = GPIO.input(self.comp_gpio)
-            
-            if comp_value == 0:
+            # компаратор = 1, когда напряжение ЦАП превысило входное
+            if GPIO.input(self.comp_gpio) == 1:
                 return number
 
         return self.max_number
@@ -44,15 +47,17 @@ class R2R_ADC:
         if self.verbose:
             print(f"Число на ЦАП: {number}, напряжение: {voltage:.3f} В")
         return voltage
-     def successive_approximation_adc(self):
+
+    # ---------- задание 2: АЦП последовательного приближения ----------
+
+    def successive_approximation_adc(self):
         number = 0
-        # идём от старшего бита (128) к младшему (1)
-        for bit in range(self.bits - 1, -1, -1):
-            trial = number | (1 << bit)      # пробуем включить этот бит
+        for bit in range(self.bits - 1, -1, -1):  # от старшего бита к младшему
+            trial = number | (1 << bit)
             self.number_to_dac(trial)
             time.sleep(self.compare_time)
 
-            # если ЦАП НЕ превысил вход, бит оставляем
+            # ЦАП не превысил вход -> бит оставляем
             if GPIO.input(self.comp_gpio) == 0:
                 number = trial
 
@@ -67,13 +72,20 @@ class R2R_ADC:
 
 
 if __name__ == "__main__":
+    # python r2r_adc.py      -> задание 1 (последовательный счёт)
+    # python r2r_adc.py sar  -> задание 2 (последовательное приближение)
+    mode = sys.argv[1] if len(sys.argv) > 1 else "sc"
+
     adc = None
     try:
         # динамический диапазон нужно предварительно измерить мультиметром
         adc = R2R_ADC(3.3)
 
         while True:
-            voltage = adc.get_sc_voltage()
+            if mode == "sar":
+                voltage = adc.get_sar_voltage()
+            else:
+                voltage = adc.get_sc_voltage()
             print(f"Напряжение: {voltage:.3f} В")
 
     finally:
